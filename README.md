@@ -1,6 +1,8 @@
 # DBloops
 Matlab functions and scripts for obtaining grain size distribution of coarse (6.3 cm+) particles in nonplanar deposits of granular material
 
+Please cite this code as appropriate with the DOI 10.5281/zenodo.10048972
+
 This repository contains all necessary Matlab code to recreate the analyses presented in Jacobson et al., (2023). This includes the clustering code DBloops, the machine learning point cloud descriptor (feature) calculation tool Terpukto (Weidner, 2023), the clustering code G3Point (Steer, 2023), and the function confusionmatStats (Cheong, 2023). 
 
 To recreate the analyses presented in Jacobson et al., (2023), users must first download the 'GSD code' folder from this repository. 
