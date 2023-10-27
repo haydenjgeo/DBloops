@@ -1,0 +1,6 @@
+﻿Name,iplot,saveplot,denoise,decimate,minima,rotdetrend,clean,gridbynumber,savegranulo,savegrain,res,nscale,minscale,maxscale,nnptcloud,cf,maxangle1,maxangle2,minflatness,fitmethod,Aquality_thresh,mindiam,naxis,nmin,dx_gbn
+Otira_1cm_grains.ply,1,1,1,0,1,1,0,1,1,1,0.002,4,0.04,2,400,2,20,10,0.4,direct,10,0.04,2,300,0
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,min,20,0.6,10,,0.1,,,,,50,
+,,,,,,,,,,,,,,max,400,2,80,,0.4,,,,,300,

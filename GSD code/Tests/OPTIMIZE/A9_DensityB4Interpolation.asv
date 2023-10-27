@@ -1,0 +1,151 @@
+% Description: This script determines an appropriate pre-interpolation
+% density to retain high Precision in the full-density point cloud after
+% interpolating the classification of core points to the full cloud.
+% (interpolation is replaced by the term extrapolation in the associated manuscript)
+%
+% Outputs: Plots showing relationships between pre-interpolation density 
+%
+% Revision: R2022a
+% Author: Hayden Jacobson, Colorado School of Mines/USGS
+% Date: October 2023
+
+%% Load precalculated features
+%This code uses all 500,000 core points from Feat3 and then subsamples later
+% clear; close all
+load('Feat3.mat');
+GV=load("GoodVars.mat");
+GoodVars=GV.GoodVars;
+% Combine subregions of cloud for a total of 500,000 points (clast + matrix)
+sitenums=[1:5]; %5 sites 
+tempfeats=[feats{1};feats{2};feats{3};feats{4};feats{5}];
+%set up featsB one field at a time
+featsB.geom=[tempfeats(1).geom;tempfeats(2).geom;tempfeats(3).geom;tempfeats(4).geom;tempfeats(5).geom];
+featsB.slope=[tempfeats(1).slope;tempfeats(2).slope;tempfeats(3).slope;tempfeats(4).slope;tempfeats(5).slope];
+featsB.scan=[tempfeats(1).scan;tempfeats(2).scan;tempfeats(3).scan;tempfeats(4).scan;tempfeats(5).scan];
+featsB.rough=[tempfeats(1).rough;tempfeats(2).rough;tempfeats(3).rough;tempfeats(4).rough;tempfeats(5).rough];
+featsB.LABpoint=[tempfeats(1).LABpoint;tempfeats(2).LABpoint;tempfeats(3).LABpoint;tempfeats(4).LABpoint;tempfeats(5).LABpoint];
+featsB.meanLAB=[tempfeats(1).meanLAB;tempfeats(2).meanLAB;tempfeats(3).meanLAB;tempfeats(4).meanLAB;tempfeats(5).meanLAB];
+featsB.LABstd=[tempfeats(1).LABstd;tempfeats(2).LABstd;tempfeats(3).LABstd;tempfeats(4).LABstd;tempfeats(5).LABstd];
+featsB.WaltonLAB=[tempfeats(1).WaltonLAB;tempfeats(2).WaltonLAB;tempfeats(3).WaltonLAB;tempfeats(4).WaltonLAB;tempfeats(5).WaltonLAB];
+featsB.GLCM=[tempfeats(1).GLCM;tempfeats(2).GLCM;tempfeats(3).GLCM;tempfeats(4).GLCM;tempfeats(5).GLCM];
+% featsB.LABtexture=[tempfeats(1).LABtexture;tempfeats(2).LABtexture;tempfeats(3).LABtexture;tempfeats(4).LABtexture]; %no Berretta features desired for testing 
+featsB.intensity=[tempfeats(1).intensity;tempfeats(2).intensity;tempfeats(3).intensity;tempfeats(4).intensity;tempfeats(5).intensity];
+featsB.truth=[tempfeats(1).truth;tempfeats(2).truth;tempfeats(3).truth;tempfeats(4).truth;tempfeats(5).truth];
+featsB.points=[tempfeats(1).points;tempfeats(2).points;tempfeats(3).points;tempfeats(4).points;tempfeats(5).points];
+
+% conduct 20/80 training/testing; still plenty of points to get good classifier, and must keep high number of testing points for later clustering) 
+% this section obtains the correct indexes for constructing balanced training/testing sets with even samples across all subregions 
+q=[0:9]*50000+1;
+tind=[];
+for i=1:length(q)
+    tinds=[q(i):q(i)+49999];
+    tind=[tind tinds];
+end
+
+%extract of data for testing, leave the rest 
+tsf=0.8; %testing fraction
+
+q2=[0:10]*50000+1; %ten is number of sites*number of classes
+train1=[];
+test1=[];
+for u=1:length(q)
+    test2=tind(q2(u):(q2(u)+50000*tsf-1));
+    train2=tind((q2(u)+50000*tsf):(q2(u+1)-1));
+    train1=[train1 train2];
+    test1=[test1 test2];
+end
+
+all = [featsB.geom,featsB.slope,featsB.intensity,featsB.meanLAB,featsB.LABstd,featsB.WaltonLAB,featsB.scan,featsB.rough,featsB.LABpoint,featsB.GLCM];
+allt = featsB.truth;
+x_test = all(test1,:);
+x_train = all(train1,:);
+y_test = allt(test1,:);
+y_train = allt(train1,:);
+test_points = featsB.points(test1,:);
+
+% limit to features already identified with RFE
+x_test = all(test1,:);
+x_test = x_test(:,GoodVars);
+x_train = all(train1,:);
+x_train = x_train(:,GoodVars);
+y_test = allt(test1,:);
+y_train = allt(train1,:);
+
+
+%% Create classifier with precalculated features and classify testing data prior to clustering 
+rf = TreeBagger(30,x_train,y_train,'maxnumsplits',60);
+[y_pred,score] = predict(rf,x_test); %prediction
+y_prediction = str2double(y_pred); %accuracy evaluation
+stats50 = confusionmatStats(y_test,y_prediction);
+%adjust decision threshold 
+new_pred=zeros(length(y_pred),1); %decision split threshold 
+threshold=0.65; %increase threshold to reduce false positives (false clasts) 
+new_pred(find(score(:,1)<threshold))=1; %large value in column 1 indicates likely 0 class (clast)
+%get statistics - precision of class 0 should be over 0.9 for best results
+stats65 = confusionmatStats(y_test,new_pred);
+
+% append predictions to test points for later comparison to y_test values
+newcloud=[test_points new_pred];
+
+%% prepare for DBloops
+% load in full cloud, interpolate, extract "clasts"
+FullCloud = readmatrix('FH_NoUndersized_AllFields.txt');  %extra scalar fields but InterpLabel knocks them off
+cloud=FullCloud(~isnan(FullCloud(:,7)),[1 2 3 7]);
+[gsdtrue, vals]=GetGSD(cloud,99.5);
+
+%% Test different point densities 
+density=[100:100:1000 1250 1500 1750 2000 2500 3000 3500 4000 4500]; %ppm^2
+tnp=density*83; %total points to subsample (density*area)
+
+%loop to randomly subsample from the 400k/100k testing/training split
+for i=1:length(tnp)
+    for j=1:10
+% randomly subsample to create newcloud2 
+        sampinds=randsample(max(tnp), tnp(i));
+        newcloud2=newcloud(sampinds,:);
+        interped=InterpLabel(FullCloud,newcloud2);
+%FullCloud index 9 is classification 
+%interped index 4 is classification from newcloud2
+%manually calculated FScore and Precision 
+        dif=FullCloud(:,9)*2-interped(:,4);
+        TP(j)=length(dif(dif==0));
+        TN(j)=length(dif(dif==1));
+        FN(j)=length(dif(dif==-1));
+        FP(j)=length(dif(dif==2));
+        fscore(j)=2*TP/(2*TP+FP+FN);
+        precision(j)=TP/(TP+FP);
+    end   
+
+    Fscore{i}=fscore;
+    Precision{i}=precision;
+end
+save A9_DB4I.mat Fscore Precision stats65 density
+
+%% plot - add in plot of stats65.Precision(1,1)
+%[100:100:1000 1250 1500 1750 2000 2500 3000 3500 4000 4500] original densities
+% load('A9_DB4I.mat')%if you don't want to run the upper section
+selected=[1 2 3 4 5 6 7 8 9 10 12 15 17 20 25 30 35 40 45];
+for i=1:length(selected)
+    Fscore2(:,selected(i))=Fscore{i};
+    Precision2(:,selected(i))=Precision{i};
+end
+
+ff=figure;
+ff.Position=[0 0 700 500];
+
+density=[100:100:1000 NaN NaN NaN NaN 1500 NaN NaN NaN NaN 2000 NaN NaN NaN NaN 2500 NaN NaN NaN NaN 3000 NaN NaN NaN NaN 3500 NaN NaN NaN NaN 4000];% NaN NaN NaN NaN 4500];
+boxplot(Precision2(:,1:40),'Labels',density)%(:,1:length(density))
+%manuallly add some blanks to density labels in X axis so it's not so dense
+xticklabels({'' '' '' ''  '500' '' '' '' ''  '1000' '' '' '' '' '1500' '' '' '' '' '2000'  '' '' '' '' '2500'...
+    '' '' '' '' '3000'  '' '' '' '' '3500'  '' '' '' '' '4000'})
+% hold on
+% yline(stats65.precision(1,1),'LineWidth',2,'Color','r')
+
+legend('Core Point Precision (no extrapolation)','position','southwest')
+
+ylim([0.76 0.94])
+xtickangle(45)
+ylabel('Precision of Interpolated Cloud')
+xlabel('Density (points/m^2)')
+%% print plot 
+print('A9_DB4Interpolation', '-dpng')
