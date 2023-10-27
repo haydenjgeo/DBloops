@@ -7,7 +7,7 @@ To recreate the analyses presented in Jacobson et al., (2023), users must first 
 
 Next, users must download the point cloud file 'TrainingRegions.txt' from the USGS data release found at https://doi.org/10.5066/P9QQ0AR2 and place it in the main 'GSD code' folder. This point cloud (3.3 GB) will be copied, subdivided, and modified during recreation of analyses, so ensure a minumum of 14 GB of storage are available before running code. 
 
-Finally, users must open the folder 'ReproduceResults', open the script 'MasterScript.m', and run the script from the main 'GSD code' folder. Note that as precalculated point cloud descriptors (features) are included as the file 'Feat3.mat' it is not necessary to run the script 'SubregionFeatures.m' which takes several hours to run, so the command to execute this script is commented out in 'MasterScript.m'. Users may uncomment and run this code if desired. 
+Finally, users must open the folder 'ReproduceResults', open the script 'MasterScript.m', and run the script from the main 'GSD code' folder. This will take take an estimated 12 hours to run on an average desktop with the majority of the computational time used for descriptor calculation with 'terpunkto2scan2geo.mat'
 
 Descriptions of all functions and scripts called by MasterScript.m are included as comments in the script.  
 
