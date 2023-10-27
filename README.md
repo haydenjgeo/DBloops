@@ -11,6 +11,12 @@ Finally, users must open the folder 'ReproduceResults', open the script 'MasterS
 
 Descriptions of all functions and scripts called by MasterScript.m are included as comments in the script.  
 
+Note on minor edits made to Terpunkto and G3Point: 
+
+The version of Terpunkto uploaded here is renamed 'Terpunkto2scan2geo.m' due to the addition of lidar scan index and geometric roughness based features. Minor edits to G3Point have been made, including commenting out the plotting code to save time - visualization is critical for G3Point optimization, so do not use this version of G3Point independently. Use the version found at the link in the references below. The 'param.csv' file in G3Point has been modified with the best parameters identified from trial and error testing. Default parameters are saved in 'param - backup.csv'. The path name requirements in 'G3Point.m', 'loadptCloud.m', and 'defineparmaeters.m' have also been removed so G3Point can be run from the main 'GSD code' folder. 
+
+
+
 
 References
 
